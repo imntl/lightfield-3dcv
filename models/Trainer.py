@@ -74,9 +74,12 @@ class Trainer(object):
                 args = self.model(input)
                 test_loss += self.loss_function(*args,**{'M_N':1e-4*self.batch_size/len(self.loader_val)})['loss'].item()
                 if i == 0 and epoch%10 == 0:
-                    n = min(args[1].size(0), 6)
-                    comparison = torch.cat([args[1][:n],
-                                          args[0].view(self.batch_size, self.model.out_channels, self.input_size, self.input_size)[:n]])
+                    n=1
+                    original_img = args[1][:n]
+                    original_img = torch.reshape(original_img, (9, 3, self.input_size, self.input_size))
+                    reconstructed_img = args[0].view(self.batch_size, self.model.out_channels, self.input_size, self.input_size)[:n]
+                    reconstructed_img = torch.reshape(reconstructed_img, (9, 3, self.input_size, self.input_size))
+                    comparison = torch.cat([original_img, reconstructed_img],-1)
                     save_image(comparison.cpu(),
                              self.path + '/reconstruction_' + str(epoch) + '.png', nrow=n)
 
