@@ -132,4 +132,24 @@ class RandomCrop:
         x = random.randint(self.pad, w - self.size[1] - self.pad)
 
         return data[:, y:y+self.size[0], x:x+self.size[1]]
+    
+    
+class ToTensor(object):
+    """Convert a ``numpy.ndarray`` to tensor.
 
+    Converts a numpy.ndarray (C x H x W) in the range
+    [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+    """
+
+    def __call__(self, pic):
+        """
+        Args:
+            pic (numpy.ndarray): Image to be converted to tensor.
+
+        Returns:
+            Tensor: Converted image.
+        """
+        # convert numpy array
+        img = torch.from_numpy(pic)
+        # backward compatibility
+        return img.float().div(255)
