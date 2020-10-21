@@ -11,13 +11,17 @@ class LightFieldDataset:
     Dataset class for the Lightfield Dataset.
     '''
     
-    def __init__(self, sort = 'training', data_kind = 'grid', root_dir = './data/', transform=None):
+    def __init__(self, sort = 'training', data_kind = 'grid', root_dir = './data/', transform = None):
         '''
         Args:
             sort (string or list): What sort of data you want to load. Valid input: 'training', 'test', 'stratified', 'additional'.
-            data_kind (string): What structure the data should have. Valid input: 'grid', 'hstack', 'vstack', 'stack', 'cross'.
+            data_kind (string): What structure the data should have. Valid input: 'all'*, 'grid', 'hstack', 'vstack', 'stack', 'cross'.
             root_dir (string, optional): the working directory with subdirectories 'training', 'test', etc.
             transform (callable, optional): Optional transform to be applied the data.
+            
+            *'all' returns a list containing hstack, vstack and the diagonals, i.e. [hstack, vstack, diagonal1, diagonal2],
+                   where diagonal1 contains the images from the upper left to the lower right and diagonal2 the images from
+                   the upper right to the lower left.
         '''
         
         self.data_kind = data_kind
@@ -64,10 +68,19 @@ class LightFieldDataset:
     
     def __getitem__(self, index):
         '''
-        Returns a whole grid/ vstack/ hstack/ stack/ cross
+        Returns a whole grid/ vstack/ hstack/ stack/ cross/ all (list containing hstack, vstack and diagonals)
         '''
         
         final_data = []
+        
+        if self.data_kind == 'all':
+            final_data_hstack1 = []
+            final_data_hstack2 = []
+            final_data_vstack1 = []
+            final_data_vstack2 = []
+            final_data_diag1 = []
+            final_data_diag2 = []
+        
         
         if torch.is_tensor(index):
             index = index.tolist()
@@ -105,6 +118,7 @@ class LightFieldDataset:
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
                                 for color in range(3):
                                     final_data.append(img[:, :, color]/255)
+                                    
                             if self.stack_index[index] > 8:
                                 custom_stack_index = self.stack_index[index] - 9
                                 if image_number % 9 == custom_stack_index:
@@ -117,7 +131,46 @@ class LightFieldDataset:
                             img = cv2.imread(os.path.join(self.directory_names[index], imagename))
                             for color in range(3):
                                 final_data.append(img[:, :, color]/255)
-        
+                                
+                        if self.data_kind == 'all':
+                            if np.floor_divide(image_number, 9) == self.stack_index[index]: # hstack1
+                                img = cv2.imread(os.path.join(self.directory_names[index], imagename))
+                                for color in range(3):
+                                    final_data_hstack1.append(img[:, :, color]/255)
+                                    
+                            if image_number % 9 == self.stack_index[index]: # vstack1
+                                img = cv2.imread(os.path.join(self.directory_names[index], imagename))
+                                for color in range(3):
+                                    final_data_vstack1.append(img[:, :, color]/255)
+                                    
+                            if image_number % 10 == 0: # diag1
+                                img = cv2.imread(os.path.join(self.directory_names[index], imagename))
+                                for color in range(3):
+                                    final_data_diag1.append(img[:, :, color]/255)
+                                    
+                            if image_number in [8, 16, 24, 32, 40, 48, 56, 64, 72]: #diag2
+                                img = cv2.imread(os.path.join(self.directory_names[index], imagename))
+                                for color in range(3):
+                                    final_data_diag2.append(img[:, :, color]/255)
+                            
+        if self.data_kind == 'all':
+            final_data_hstack1 = np.array(final_data_hstack1)
+            final_data_hstack2 = np.flip(final_data_hstack1)
+            final_data_vstack1 = np.array(final_data_vstack1)
+            final_data_vstack2 = np.flip(final_data_vstack1)
+            final_data_diag1 = np.array(final_data_diag1)
+            final_data_diag2 = np.array(final_data_diag2)
+            
+            if self.transform:
+                final_data = np.concatenate((final_data_hstack1, final_data_vstack1, final_data_diag1, final_data_hstack2, final_data_vstack2, final_data_diag2))
+                final_data = self.transform(final_data)
+                final_data = [final_data[:27], final_data[27:54], final_data[54:81], final_data[81:108], final_data[108:135], final_data[135:]]
+            
+            else:
+                final_data = [final_data_hstack1, final_data_vstack1, final_data_diag1, final_data_hstack2, final_data_vstack2, final_data_diag2]
+            
+            return final_data
+                            
         # in the 'cross' case the images got appended from vertical to horizontal, but we swap it the other way around
         if self.data_kind == 'cross':
             final_data = final_data[4:13] + final_data[0:4] + final_data[13:]
@@ -129,6 +182,7 @@ class LightFieldDataset:
         
         return final_data
     
+
 '''
 Code, welcher eine Batch an Daten annimmt und diese dann mit MatPlotLib anzeigt.
 '''
@@ -157,4 +211,3 @@ def lightPlotterGrid(dataloader, iterations = 1, save = False):
                 axs[i//n_rows,i%n_rows].get_yaxis().set_visible(False)
                 axs[i//n_rows,i%n_rows].imshow(img)
             if save: fig.savefig(f"grid{iterations}.png")
-    
