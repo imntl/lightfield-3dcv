@@ -151,5 +151,7 @@ class ToTensor(object):
         """
         # convert numpy array
         img = torch.from_numpy(pic)
-        # backward compatibility
-        return img.float().div(255)
+        if torch.max(img)>1:
+          img = img.float().div(255)
+        else: img = img.float()
+        return img
