@@ -4,6 +4,7 @@ from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from torchvision.utils import save_image
 
 class ViewSynthesis:
     def __init__(self,
@@ -19,6 +20,9 @@ class ViewSynthesis:
         
         self.target = self.data[-1].unsqueeze(0)
         self.input = [self.data[0].unsqueeze(0), self.data[1].unsqueeze(0)]
+        
+        self.h = self.target.shape[-2]
+        self.w = self.target.shape[-1]
         
         
     def combine(self,weight=0.5):
