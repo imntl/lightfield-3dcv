@@ -65,6 +65,15 @@ class ViewSynthesis:
         
         return [syn_loss, rec_loss1, rec_loss2]
     
+    def save_synthesized_views(self, path, weight=0.5):
+        new_views = self.combine(weight)
+        new_views = torch.reshape(new_views,(9, 3, self.h, self.w))
+        orig_views1 = torch.reshape(self.input[0],(9, 3, self.h, self.w))
+        orig_views2 = torch.reshape(self.input[1],(9, 3, self.h, self.w))
+        target = torch.reshape(self.target,(9, 3, self.h, self.w))
+        comparison = torch.cat([orig_views1, orig_views2, target, new_views],-1)
+        save_image(comparison, path  + '.png', nrow=1)
+    
     
 class Evaluation:
     def __init__(self,
@@ -108,12 +117,20 @@ class Evaluation:
         
         plt.yscale('log')
         plt.plot(np.arange(n), syn_loss, label='View Synthesis')
-        plt.plot(np.arange(n), rec1_loss, label='Reconstruction1')
-        plt.plot(np.arange(n), rec2_loss, label='Reconstruction2')
+        plt.plot(np.arange(n), rec1_loss, label='Reconstruction hstack')
+        plt.plot(np.arange(n), rec2_loss, label='Reconstruction vstack')
+        plt.ylabel('mse')
         plt.grid()
         plt.legend()
-        plt.title('Losses')
+        plt.title('Comparison of Reconstruction Losses')
         plt.show()
+        
+    def save_synthesized_views(self, path, nb, weight=0.5):
+        for i in range(nb):
+          path_new = os.path.join(path, 'synthesized_view' + str(i))
+          data = self.dataset[i]
+          view_synthesis = ViewSynthesis(self.model, data, self.reverse)
+          view_synthesis.save_synthesized_views(path_new, weight)
            
            
            
