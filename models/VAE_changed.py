@@ -62,8 +62,8 @@ class VAE(nn.Module):
         for i in range(len(hidden_dims) - 1):
             modules.append(
                 nn.Sequential(
-                    ResidualBlockDecoder(hidden_dims[i], hidden_dims[i], stride = 1),
                     ResidualBlockDecoder(hidden_dims[i], hidden_dims[i+1], stride = 2),
+                    ResidualBlockDecoder(hidden_dims[i+1], hidden_dims[i+1], stride = 1),
                     ResidualBlockDecoder(hidden_dims[i+1], hidden_dims[i+1], stride = 1))
             )
 
@@ -72,9 +72,9 @@ class VAE(nn.Module):
         self.decoder = nn.Sequential(*modules)
 
         self.final_layer = nn.Sequential(
-                            ResidualBlockDecoder(hidden_dims[-1], hidden_dims[-1], stride=1),
                             ResidualBlockDecoder(hidden_dims[-1], self.out_channels, stride=2),
-                            nn.Conv2d(in_channels=self.out_channels, out_channels= self.out_channels,
+                            ResidualBlockDecoder(self.out_channels, self.out_channels, stride=1),
+                            nn.ConvTranspose2d(in_channels=self.out_channels, out_channels= self.out_channels,
                                       kernel_size= 3, padding= 1),
                             nn.Tanh())
 
