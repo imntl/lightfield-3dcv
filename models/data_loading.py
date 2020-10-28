@@ -135,13 +135,11 @@ class LightFieldDataset:
                         if self.data_kind == 'all':
                             if np.floor_divide(image_number, 9) == self.stack_index[index]: # hstack1
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
-                                for color in range(3):
-                                    final_data_hstack1.append(img[:, :, color]/255)
+                                final_data_hstack1.append(img/255)
                                     
                             if image_number % 9 == self.stack_index[index]: # vstack1
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
-                                for color in range(3):
-                                    final_data_vstack1.append(img[:, :, color]/255)
+                                final_data_vstack1.append(img/255)
                                     
                             if image_number % 10 == 0: # diag1
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
@@ -154,10 +152,15 @@ class LightFieldDataset:
                                     final_data_diag2.append(img[:, :, color]/255)
                             
         if self.data_kind == 'all':
-            final_data_hstack1 = np.array(final_data_hstack1)
-            final_data_hstack2 = np.flip(final_data_hstack1)
-            final_data_vstack1 = np.array(final_data_vstack1)
-            final_data_vstack2 = np.flip(final_data_vstack1)
+            list_of_himages = final_data_hstack1
+            final_data_hstack1 = np.concatenate(final_data_hstack1,-1).transpose(2,0,1)
+            list_of_himages.reverse()
+            final_data_hstack2 = np.concatenate(list_of_himages,-1).transpose(2,0,1)
+            #list_of_vimages = final_data_vstack1
+            final_data_vstack1 = np.concatenate(final_data_vstack1,-1).transpose(2,0,1)
+            #list_of_vimages.reverse()
+            #final_data_vstack2 = np.concatenate(list_of_vimages,-1).transpose(2,0,1)
+            final_data_vstack2 = final_data_vstack1
             final_data_diag1 = np.array(final_data_diag1)
             final_data_diag2 = np.array(final_data_diag2)
             
