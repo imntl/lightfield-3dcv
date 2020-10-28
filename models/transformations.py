@@ -4,9 +4,14 @@ import skimage.color as color
 import torch
 
 class Brightness:
-    """
+    '''
     Randomly change Brightness
-    """
+        
+    Parameters
+    ----------
+    probability : float between 0 and 1. The default is 0.5.
+
+    '''
     def __init__(self, probability=0.5, level=0.9):
   
         assert probability >= 0 and probability <= 1
@@ -22,47 +27,17 @@ class Brightness:
 
         return data
 
-class Color_jitter:
-    """ 
-    Randomly jitter the saturation, hue and brightness of the image.
-    """
-    def __init__(self, probability=0.5, level=0.9):
-  
-        assert probability >= 0 and probability <= 1
-        self.probability = probability
-
-    def __call__(self, data):
-
-        if np.random.rand() <= self.probability:
-
-          # skimage expects WHC instead of CHW
-          data = data.transpose((1, 2, 0))
-
-          # transform image to hsv color space to apply jitter
-          n, m, l = data.shape
-          data = data.reshape((n,m*(l//3),3))
-          data = color.rgb2hsv(data)
-
-          # compute jitter factors in range 0.66 - 1.5  
-          jitter_factors = 1.5 * np.random.rand(3)
-          jitter_factors = np.clip(jitter_factors, 0.66, 1.5)
-
-          # apply the jitter factors, making sure to stay in correct value range
-          data *= jitter_factors
-          data = np.clip(data, 0, 1)
-
-          # transform back to rgb and CHW    
-          data = color.rgb2hsv(data)
-            
-          data = data.reshape((n,m,l))
-          data = data.transpose((2, 0, 1))
-        return data
 
 
 class Contrast:
-    """
+    '''
     Randomly change Contrast
-    """
+    
+    Parameters
+    ----------
+    probability : float between 0 and 1. The default is 0.5.
+
+    '''
 
     def __init__(self, probability = 0.5, level=0.9):
     
@@ -83,9 +58,14 @@ class Contrast:
 
 
 class Noise:
-    """
+    '''
     Add random Gaussian noise
-    """
+    
+    Parameters
+    ----------
+    probability : float between 0 and 1. The default is 0.5.
+
+    '''
 
     def __init__(self, probability = 0.5, stdev=0.01):
       
@@ -105,9 +85,14 @@ class Noise:
 
 
 class RandomCrop:
-    """
+    '''
     Crop patches randomly to a given size
-    """
+    
+    Parameters
+    ----------
+    size : height and width of quadratic patch
+
+    '''
 
     def __init__(self, size, pad=0):
        
@@ -136,21 +121,13 @@ class RandomCrop:
     
     
 class ToTensor(object):
-    """Convert a ``numpy.ndarray`` to tensor.
-
+    '''
     Converts a numpy.ndarray (C x H x W) in the range
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
-    """
+    '''
 
     def __call__(self, pic):
-        """
-        Args:
-            pic (numpy.ndarray): Image to be converted to tensor.
-
-        Returns:
-            Tensor: Converted image.
-        """
-        # convert numpy array
+        
         img = torch.from_numpy(pic)
         if torch.max(img)>1:
           img = img.float().div(255)
