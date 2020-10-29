@@ -132,3 +132,32 @@ class ToTensor(object):
           img = img.float().div(255)
         else: img = img.float()
         return img
+
+class Resize(object):
+    '''
+    Resizes a numpy.ndarray to a given size
+    
+    Parameters
+    ----------
+    size : height and width of quadratic output
+    '''
+    
+    def __init__(self, size):
+        assert isinstance(size, int)
+        self.size = size
+            
+    def __call__(self, data):
+        
+        c = data.shape[0]
+        h = data[0].shape[-2]
+        w = data[0].shape[-1]
+        
+        assert h > self.size
+        assert w > self.size
+        assert h == w
+        
+        bin_size = h // self.size
+        small_image = data.reshape((c, self.size, bin_size, 
+                                       self.size, bin_size)).max(4).max(2)
+        
+        return small_image
