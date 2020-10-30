@@ -30,10 +30,6 @@ class ViewSynthesis:
         self.h = self.target.shape[-2]
         self.w = self.target.shape[-1]
         
-        self.full_data = []
-        for stack in data:
-            self.full_data.append(torch.reshape(stack,(9, 3, self.h, self.w)))
-        self.full_data = torch.cat([self.full_data[0], self.full_data[1], self.full_data[2], self.full_data[3], self.full_data[4], self.full_data[5]],-1)
             
             
     def combine(self,weight=0.5):
@@ -85,23 +81,42 @@ class ViewSynthesis:
         return [rec_loss1, rec_loss2, syn_loss, syn_loss2]
     
     def save_synthesized_views(self, path1, path2, path3, weight=0.5):
-        
-        save_image(self.full_data, path1 + 'full_data.png', nrow=1)
-        
-        # get interpolated views and reconstructions
+        '''
+
+        Parameters
+        ----------
+        path1 : string. Original and reconstructed vstack is saved here.
+        path2 : string. 3x3 views with error maps is saved here.
+        path3 : srting. 3x3 views of original hstack, vstack and diagonal is saved here.
+        weight : float. The default is 0.5.
+
+        Returns
+        -------
+        None.
+
+        '''
+                
+        # get interpolated views and reconstructions:
+            
+        # interpolated views    
         new_views = self.combine(weight)
-        new_views = torch.reshape(new_views,(9, 3, self.h, self.w))
-        orig_views1 = torch.reshape(self.input[0],(9, 3, self.h, self.w))
-        rec1 = self.model(self.input[0])[0].detach()
-        rec1 = torch.reshape(rec1,(9, 3, self.h, self.w))
-        orig_views2 = torch.reshape(self.input[1],(9, 3, self.h, self.w))
-        rec2 = self.model(self.input[1])[0].detach()
-        rec2 = torch.reshape(rec2,(9, 3, self.h, self.w))
-        target = torch.reshape(self.target,(9, 3, self.h, self.w))
-        target2 = torch.reshape(self.target2,(9, 3, self.h, self.w))
+        new_views = torch.flip(torch.reshape(new_views,(9, 3, self.h, self.w)),dims=[1])
         
-        # save original and constructed views
-        #comparison = torch.cat([orig_views1, rec1, orig_views2, rec2, target, new_views, target2],-1)
+        # original hstack with reconstruction
+        orig_views1 = torch.flip(torch.reshape(self.input[0],(9, 3, self.h, self.w)), dims=[1])
+        rec1 = self.model(self.input[0])[0].detach()
+        rec1 = torch.flip(torch.reshape(rec1,(9, 3, self.h, self.w)),dims=[1])
+        
+        # original vstack with reconstruction
+        orig_views2 = torch.flip(torch.reshape(self.input[1],(9, 3, self.h, self.w)),dims=[1])
+        rec2 = self.model(self.input[1])[0].detach()
+        rec2 = torch.flip(torch.reshape(rec2,(9, 3, self.h, self.w)),dims=[1])
+        
+        # original diagonals
+        target = torch.flip(torch.reshape(self.target,(9, 3, self.h, self.w)),dims=[1])
+        target2 = torch.flip(torch.reshape(self.target2,(9, 3, self.h, self.w)),dims=[1])
+        
+        # save original vstack and its reconstruction
         comparison = torch.cat([orig_views2, rec2],-1)
         save_image(comparison, path1  + '.png', nrow=1)
         
@@ -109,17 +124,18 @@ class ViewSynthesis:
             
         
         
-        # save difference map
+        # save error map:
+        
+        # calculate L1-norm of differences and threshold
         diff = abs(target-new_views)
         diff2 = abs(target2-new_views)
-        
-        diff = torch.sum(diff, dim=1) #.unsqueeze(1)
+        diff = torch.sum(diff, dim=1)
         thresh = (torch.min(diff).item()+torch.max(diff).item())/2
-        diff2 = torch.sum(diff2, dim=1) #.unsqueeze(1)
+        diff2 = torch.sum(diff2, dim=1)
         diff = torch.where(diff>thresh,diff,torch.tensor([0.]))
         diff2 = torch.where(diff2>thresh,diff2,torch.tensor([0.]))
         
-        
+        # insert images in correct place of 3x3 view
         if not self.reverse:
             img_h1 = orig_views1[0] #lm
             img_h2 = orig_views1[-1] #rm
@@ -138,7 +154,7 @@ class ViewSynthesis:
         img_v2 = orig_views2[4] #m
         img_v3 = orig_views2[-1] #um
         
-        map_views = torch.ones((3,3*self.h,3*self.w))
+        map_views = torch.ones((3,3*self.h,3*self.w)) #initialization
         
         map_views[:,:self.h,:self.w] = diff_map1
         map_views[:,self.h:2*self.h,:self.w] = img_h1
@@ -151,13 +167,12 @@ class ViewSynthesis:
         map_views[:,2*self.h:,2*self.w:] = diff_map2
         
         
-        #color_maps = torch.cat([diff, diff2],-1)
         if self.reverse:
             path2 = path2 + '_rev'
         save_image(map_views, path2 + '.png', nrow=1)
         
         
-         # save 3x3 views
+         # save 3x3 comparisons
         img_h1 = orig_views1[0]
         img_h2 = orig_views1[-1]
         img_v1 = orig_views2[0]
@@ -168,24 +183,26 @@ class ViewSynthesis:
         small_comparison = torch.ones((3,3*self.h,3*self.w))
         
         if not self.reverse:
-            small_comparison[:,:self.h,:self.w] = img_new1
-            small_comparison[:,self.h:2*self.h,:self.w] = img_h1
-            small_comparison[:,:self.h,self.w:2*self.w] = img_v1
-            small_comparison[:,self.h:2*self.h,self.w:2*self.w] = img_new2
-            small_comparison[:,2*self.h:,self.w:2*self.w] = img_v2
-            small_comparison[:,self.h:2*self.h,2*self.w:] = img_h2
-            small_comparison[:,2*self.h:,2*self.w:] = img_new3
+            small_comparison[:,:self.h,:self.w] = img_new1 #lo
+            small_comparison[:,self.h:2*self.h,:self.w] = img_h1 #lm
+            small_comparison[:,:self.h,self.w:2*self.w] = img_v1 #om
+            small_comparison[:,self.h:2*self.h,self.w:2*self.w] = img_new2 #m
+            small_comparison[:,2*self.h:,self.w:2*self.w] = img_v2 #um
+            small_comparison[:,self.h:2*self.h,2*self.w:] = img_h2 #rm
+            small_comparison[:,2*self.h:,2*self.w:] = img_new3 #ru
             
             
         else:
-            small_comparison[:,2*self.h:,:self.w] = img_new3
-            small_comparison[:,self.h:2*self.h,:self.w] = img_h2
-            small_comparison[:,:self.h,self.w:2*self.w] = img_v1
-            small_comparison[:,self.h:2*self.h,self.w:2*self.w] = img_new2
-            small_comparison[:,2*self.h:,self.w:2*self.w] = img_v2
-            small_comparison[:,self.h:2*self.h,2*self.w:] = img_h1
-            small_comparison[:,:self.h,2*self.w:] = img_new1
+            small_comparison[:,2*self.h:,:self.w] = img_new3 #lu
+            small_comparison[:,self.h:2*self.h,:self.w] = img_h2 #lm
+            small_comparison[:,:self.h,self.w:2*self.w] = img_v1 #mo
+            small_comparison[:,self.h:2*self.h,self.w:2*self.w] = img_new2 #m
+            small_comparison[:,2*self.h:,self.w:2*self.w] = img_v2 #mu
+            small_comparison[:,self.h:2*self.h,2*self.w:] = img_h1 #rm
+            small_comparison[:,:self.h,2*self.w:] = img_new1 #ro
             
+        if self.reverse:
+            path3 = path3 + '_rev'    
         save_image(small_comparison, path3 + '.png', nrow=1)
     
     
@@ -204,7 +221,7 @@ class Evaluation:
      
     def evaluate_view_synthesis(self, weight=0.5):
         '''
-        
+        collects mse-losses for whole dataset
    
         Parameters
         ----------
@@ -226,7 +243,9 @@ class Evaluation:
              
     def plot_evaluation(self, weight=0.5):
         '''
-        
+        plots mse-losses for visual comparison. 
+        (This visualization linearly interpolates between the losses of the different
+         input stacks and is therefore unsuitable for furthe usage)
 
         Parameters
         ----------
@@ -245,7 +264,6 @@ class Evaluation:
         
         n = len(syn_loss)
         
-        plt.yscale('log')
         plt.plot(np.arange(n), syn_loss, label='View Synthesis')
         plt.plot(np.arange(n), syn_loss2, label='View Synthesis_wrong')
         plt.plot(np.arange(n), rec1_loss, label='Reconstruction hstack')
@@ -261,8 +279,9 @@ class Evaluation:
 
         Parameters
         ----------
-        path : string, path where images should be saved.
-        nb : int. Number of different light fields for which images will be saved
+        path : String. The different visualizations are saved here.
+        nb : int. Number of different light fields for which images will be saved 
+                    (should be smaller or equal the number of input light fields).
         weight : float. The default is 0.5.
 
         Returns
@@ -271,9 +290,9 @@ class Evaluation:
 
         '''
         for i in range(nb):
-          path_new1 = os.path.join(path, 'synthesized_view' + str(i))
-          path_new2 = os.path.join(path, 'color_maps' + str(i))
-          path_new3 = os.path.join(path, 'small_comparison' + str(i))
+          path_new1 = os.path.join(path, 'reconstructed_vstack_' + str(i))
+          path_new2 = os.path.join(path, 'error_maps_' + str(i))
+          path_new3 = os.path.join(path, 'small_comparison_' + str(i))
           data = self.dataset[i]
           view_synthesis = ViewSynthesis(self.model, data, self.reverse)
           view_synthesis.save_synthesized_views(path_new1, path_new2, path_new3, weight)
