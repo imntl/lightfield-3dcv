@@ -19,7 +19,7 @@ class LightFieldDataset:
             root_dir (string, optional): the working directory with subdirectories 'training', 'test', etc.
             transform (callable, optional): Optional transform to be applied the data.
             
-            *'all' returns a list containing hstack, vstack and the diagonals, i.e. [hstack, vstack, diagonal1, diagonal2],
+            *'all' returns a list containing the middle hstack, middle vstack and the diagonals, i.e. [hstack, vstack, diagonal1, diagonal2],
                    where diagonal1 contains the images from the upper left to the lower right and diagonal2 the images from
                    the upper right to the lower left.
         '''
@@ -45,7 +45,7 @@ class LightFieldDataset:
             for filename in os.listdir(images_path):
                 directory_path = os.path.join(images_path, filename)
                 if os.path.isdir(directory_path):
-                    if self.data_kind in ['grid', 'cross']:
+                    if self.data_kind in ['grid', 'cross', 'all']:
                         self.directory_names.append(directory_path)
                     elif self.data_kind == 'stack':
                         # for data_kind stack we have 18 stacks per scene, 9 hstacks and 9 vstacks.
@@ -68,7 +68,7 @@ class LightFieldDataset:
     
     def __getitem__(self, index):
         '''
-        Returns a whole grid/ vstack/ hstack/ stack/ cross/ all (list containing hstack, vstack and diagonals)
+        Returns a whole grid/ vstack/ hstack/ stack/ cross/ all (list containing middle hstack, middle vstack and diagonals)
         '''
         
         final_data = []
@@ -133,11 +133,11 @@ class LightFieldDataset:
                                 final_data.append(img[:, :, color]/255)
                                 
                         if self.data_kind == 'all':
-                            if np.floor_divide(image_number, 9) == self.stack_index[index]: # hstack1
+                            if np.floor_divide(image_number, 9) == 4: # hstack1
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
                                 final_data_hstack1.append(img/255)
                                     
-                            if image_number % 9 == self.stack_index[index]: # vstack1
+                            if image_number % 9 == 4: # vstack1
                                 img = cv2.imread(os.path.join(self.directory_names[index], imagename))
                                 final_data_vstack1.append(img/255)
                                     
@@ -156,10 +156,7 @@ class LightFieldDataset:
             final_data_hstack1 = np.concatenate(final_data_hstack1,-1).transpose(2,0,1)
             list_of_himages.reverse()
             final_data_hstack2 = np.concatenate(list_of_himages,-1).transpose(2,0,1)
-            #list_of_vimages = final_data_vstack1
             final_data_vstack1 = np.concatenate(final_data_vstack1,-1).transpose(2,0,1)
-            #list_of_vimages.reverse()
-            #final_data_vstack2 = np.concatenate(list_of_vimages,-1).transpose(2,0,1)
             final_data_vstack2 = final_data_vstack1
             final_data_diag1 = np.array(final_data_diag1)
             final_data_diag2 = np.array(final_data_diag2)
