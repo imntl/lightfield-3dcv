@@ -1,9 +1,9 @@
 data/
 results/
+Model/
 docker.sh
 final.pth
 .ipynb_checkpoints
-Model/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
