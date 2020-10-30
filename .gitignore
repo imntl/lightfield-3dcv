@@ -1,6 +1,7 @@
 data/
 results/
 docker.sh
+final.pth
 .ipynb_checkpoints
 Model/*
 # Byte-compiled / optimized / DLL files
